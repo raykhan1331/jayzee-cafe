@@ -1,0 +1,160 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { business, menu } from "@/data/site-config";
+
+type Msg = { role: "user" | "bot"; text: string };
+
+const currency = (n: number) => `${business.currency} ${n.toLocaleString()}`;
+
+function menuList() {
+  return menu
+    .map((c) => `${c.name}: ` + c.items.map((i) => `${i.name} (${currency(i.price)})`).join(", "))
+    .join("\n");
+}
+
+function reply(raw: string): string {
+  const q = raw.toLowerCase();
+
+  if (/\b(hi|hello|hey|salam|assalam)\b/.test(q))
+    return `Hey! Welcome to ${business.name} 👋 Ask me about our menu, prices, hours, location, or how to order.`;
+
+  if (/menu|what.*(have|offer)|items/.test(q))
+    return `Here's what we've got:\n${menuList()}`;
+
+  if (/price|cost|how much|rate/.test(q))
+    return `Prices range from ${currency(420)} to ${currency(1350)}. Ask me about a specific item for its exact price!`;
+
+  if (/recommend|suggest|best|popular/.test(q))
+    return `I'd recommend the Zee Smash Burger (${currency(890)}) or our Loaded Pepperoni pizza (${currency(1350)}) — customer favorites! Craving something sweet? Try the Molten Lava Cake.`;
+
+  if (/hour|open|close|timing/.test(q))
+    return `We're open ${business.hours}. Come hungry any time!`;
+
+  if (/location|address|where|direction|find/.test(q))
+    return `You'll find us at ${business.address}. Tap "Find Us" on the site for directions.`;
+
+  if (/contact|phone|number|call|whatsapp/.test(q))
+    return `You can reach us at ${business.phone}, or message us on WhatsApp anytime.`;
+
+  if (/reserv|table|book/.test(q))
+    return `To reserve a table, scroll to the "Reserve a Table" section, pick your date, time, and number of guests, then hit Request Reservation. We'll confirm shortly!`;
+
+  if (/order|delivery|deliver|pickup|checkout/.test(q))
+    return `Ordering is easy — browse the menu, hit "Add to Cart", then head to "Your Order" to choose Delivery or Pickup and confirm. Delivery charge is ${currency(business.delivery.charge)} (free over ${currency(business.delivery.freeDeliveryOver)}), min order ${currency(business.delivery.minOrder)}.`;
+
+  if (/midnight|deal|discount|offer/.test(q))
+    return `Check out our 🌙 Midnight Deal — special late-night discounts, active daily 12:00 AM–3:00 AM!`;
+
+  if (/thank/.test(q)) return `Anytime! Enjoy your meal at ${business.name} 🍔`;
+
+  return `I can help with our menu, prices, recommendations, hours, location, contact info, reservations, and ordering. Try asking one of those!`;
+}
+
+export default function Chatbot() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>([
+    { role: "bot", text: `Hi! I'm the ${business.name} assistant. How can I help — menu, prices, hours, location, or ordering?` },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open, loading]);
+
+  function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setMessages((m) => [...m, { role: "user", text }]);
+    setInput("");
+    setLoading(true);
+    setTimeout(() => {
+      setMessages((m) => [...m, { role: "bot", text: reply(text) }]);
+      setLoading(false);
+    }, 500 + Math.random() * 400);
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={open ? "Close chat" : "Open chat"}
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-amber-700 text-white shadow-lg transition hover:bg-amber-800 sm:bottom-6 sm:right-6"
+      >
+        {open ? (
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-6 w-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5M21 12c0 4.418-4.03 8-9 8-1.06 0-2.077-.163-3.02-.463L3 21l1.395-4.185C3.512 15.463 3 13.79 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
+          </svg>
+        )}
+      </button>
+
+      {open && (
+        <div className="fixed inset-x-3 bottom-22 z-50 flex h-[70vh] max-h-[560px] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl sm:inset-auto sm:right-6 sm:bottom-24 sm:w-96">
+          <div className="flex items-center justify-between bg-amber-700 px-4 py-3 text-white">
+            <div>
+              <p className="font-bold leading-tight">{business.name}</p>
+              <p className="text-xs text-amber-100">Ask me anything</p>
+            </div>
+            <button onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1 hover:bg-amber-800">
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto bg-stone-50 p-4">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 text-sm ${
+                    m.role === "user"
+                      ? "rounded-br-sm bg-amber-700 text-white"
+                      : "rounded-bl-sm bg-white text-stone-800 shadow"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex gap-1 rounded-2xl rounded-bl-sm bg-white px-3 py-3 shadow">
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.3s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.15s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-stone-400" />
+                </div>
+              </div>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          <div className="flex items-center gap-2 border-t border-stone-200 bg-white p-3">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="Type a message…"
+              className="flex-1 rounded-full border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-700"
+            />
+            <button
+              onClick={send}
+              disabled={!input.trim() || loading}
+              aria-label="Send message"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-40"
+            >
+              <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5 19.5 12 4.5 4.5 6 11l-1.5 8.5ZM6 11h9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
