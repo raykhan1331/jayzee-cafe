@@ -124,7 +124,7 @@ export default function HomeClient() {
       <header className="sticky top-0 z-50 border-b border-stone-200 bg-stone-50/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <a href="#top" className="text-lg font-black tracking-tight text-amber-700">
-            JAYZEE <span className="text-stone-900">CAFE</span>
+            RJ ZEE <span className="text-stone-900">CAFE</span>
           </a>
           <nav className="hidden gap-6 text-sm font-medium text-stone-700 sm:flex">
             {navLinks.map((l) => (
@@ -147,14 +147,14 @@ export default function HomeClient() {
         <div className="absolute inset-0 opacity-40">
           <Image
             src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1600&q=80"
-            alt="Jayzee Cafe interior"
+            alt="RJ Zee Cafe interior"
             fill
             priority
             className="object-cover"
           />
         </div>
         <div className="relative mx-auto max-w-6xl px-4 py-28 text-center sm:py-36">
-          <h1 className="text-4xl font-black tracking-tight sm:text-6xl">JAYZEE CAFE</h1>
+          <h1 className="text-4xl font-black tracking-tight sm:text-6xl">RJ ZEE CAFE</h1>
           <p className="mt-3 text-lg font-medium text-amber-300 sm:text-2xl">{business.tagline}</p>
           <p className="mx-auto mt-5 max-w-2xl text-stone-200">{business.description}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -418,7 +418,7 @@ export default function HomeClient() {
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <div className="overflow-hidden rounded-2xl border border-stone-200">
             <iframe
-              title="Jayzee Cafe location"
+              title="RJ Zee Cafe location"
               src={`https://www.google.com/maps?q=${encodeURIComponent(business.mapEmbedQuery)}&output=embed`}
               className="h-80 w-full"
               loading="lazy"

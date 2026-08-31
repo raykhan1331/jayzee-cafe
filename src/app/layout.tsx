@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JAYZEE CAFE — Made for Foodies, Built for Moments.",
+  title: "RJ Zee Cafe — Made for Foodies, Built for Moments.",
   description:
     "Your next favorite food spot in D-Ground, Faisalabad — order online, reserve a table, or get delivery.",
 };

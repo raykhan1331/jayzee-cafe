@@ -1,7 +1,7 @@
 // Central editable business config — change data here, not inside components.
 
 export const business = {
-  name: "JAYZEE CAFE",
+  name: "RJ Zee Cafe",
   tagline: "Made for Foodies, Built for Moments.",
   description:
     "Your next favorite food spot — delicious food, beautiful vibes, and the perfect place to enjoy, relax, and create unforgettable moments.",
