@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { business, menu } from "@/data/site-config";
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-flash-lite-latest";
 
 function cafeContext(): string {
   const menuText = menu
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
           contents,
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.4, maxOutputTokens: 300 },
         }),
       }
     );
