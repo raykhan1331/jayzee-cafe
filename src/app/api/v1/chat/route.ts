@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (!res.ok) {
+      console.error("Gemini upstream error", res.status, await res.text());
       return NextResponse.json(
         { success: false, data: null, error: "AI_UPSTREAM_ERROR", message: "AI service is unavailable right now." },
         { status: 200 }
