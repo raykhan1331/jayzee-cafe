@@ -58,7 +58,11 @@ export default function Chatbot() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -85,6 +89,42 @@ export default function Chatbot() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleVoice() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceError("Voice input isn't supported in this browser.");
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    setVoiceError(null);
+    const recognition = new SR();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => setListening(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (e: any) => setInput(e.results[0][0].transcript);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (e: any) => {
+      const messages: Record<string, string> = {
+        "not-allowed": "Microphone access denied. Please allow it in your browser settings.",
+        "service-not-allowed": "Microphone access denied. Please allow it in your browser settings.",
+        "no-speech": "Didn't catch that — try speaking again.",
+        "audio-capture": "No microphone found.",
+        network: "Network error. Please try again.",
+      };
+      setVoiceError(messages[e.error] || "Voice input failed. Please try again.");
+      setListening(false);
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
   }
 
   return (
@@ -145,24 +185,40 @@ export default function Chatbot() {
             <div ref={endRef} />
           </div>
 
-          <div className="flex items-center gap-2 border-t border-stone-200 bg-white p-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="Type a message…"
-              className="flex-1 rounded-full border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-700"
-            />
-            <button
-              onClick={send}
+          <div className="border-t border-stone-200 bg-white p-3">
+            {voiceError && <p className="mb-2 px-1 text-xs text-red-600">{voiceError}</p>}
+            {listening && <p className="mb-2 px-1 text-xs text-amber-700">🎤 Listening… speak now</p>}
+            <div className="flex items-center gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+                placeholder="Type a message…"
+                className="flex-1 rounded-full border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-700"
+              />
+              <button
+                onClick={toggleVoice}
+                aria-label={listening ? "Stop voice input" : "Start voice input"}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
+                  listening ? "animate-pulse bg-red-600 text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                }`}
+              >
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" />
+                </svg>
+              </button>
+              <button
+                onClick={send}
               disabled={!input.trim() || loading}
               aria-label="Send message"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-700 text-white hover:bg-amber-800 disabled:opacity-40"
             >
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5 19.5 12 4.5 4.5 6 11l-1.5 8.5ZM6 11h9" />
-              </svg>
-            </button>
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5 19.5 12 4.5 4.5 6 11l-1.5 8.5ZM6 11h9" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
