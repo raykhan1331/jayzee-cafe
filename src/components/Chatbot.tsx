@@ -64,16 +64,27 @@ export default function Chatbot() {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open, loading]);
 
-  function send() {
+  async function send() {
     const text = input.trim();
     if (!text || loading) return;
+    const history = messages.slice(-6);
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/v1/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history }),
+      });
+      const json = await res.json();
+      const botText = json.success ? json.data.reply : reply(text);
+      setMessages((m) => [...m, { role: "bot", text: botText }]);
+    } catch {
       setMessages((m) => [...m, { role: "bot", text: reply(text) }]);
+    } finally {
       setLoading(false);
-    }, 500 + Math.random() * 400);
+    }
   }
 
   return (
