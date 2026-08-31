@@ -115,9 +115,7 @@ export default function Chatbot() {
     });
   }
 
-  // Fallback only: relies on voices installed on the customer's own device,
-  // so it can't guarantee Urdu/Punjabi audio if that device has none installed.
-  async function speakLocally(text: string) {
+  function speakWithVoice(text: string, voice: SpeechSynthesisVoice | undefined, lang: string) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setSpeakingIndex(null);
       return;
@@ -125,13 +123,8 @@ export default function Chatbot() {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
-    const isUrduScript = /[؀-ۿ]/.test(text);
-    const voices = await getVoicesReady();
-    const voice = isUrduScript
-      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^pa/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
-      : voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
     if (voice) utterance.voice = voice;
-    utterance.lang = isUrduScript ? "ur-PK" : "en-US";
+    utterance.lang = lang;
     utterance.onend = () => setSpeakingIndex(null);
     utterance.onerror = () => setSpeakingIndex(null);
     window.speechSynthesis.speak(utterance);
@@ -147,8 +140,23 @@ export default function Chatbot() {
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
     setSpeakingIndex(index);
-    // Server-side TTS speaks the actual detected language regardless of what
-    // voices happen to be installed on the customer's device.
+
+    const isUrduScript = /[؀-ۿ]/.test(text);
+    const lang = isUrduScript ? "ur-PK" : "en-US";
+    const voices = await getVoicesReady();
+    const localVoice = isUrduScript
+      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^pa/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
+      : voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
+
+    // Fast path: a matching voice is already installed on this device — speak
+    // instantly with zero network round-trip, no server quota involved.
+    if (localVoice) {
+      speakWithVoice(text, localVoice, lang);
+      return;
+    }
+
+    // No matching local voice (e.g. no Urdu pack on this device) — try
+    // server-side TTS as a best-effort enhancement (limited daily quota).
     try {
       const res = await fetch("/api/v1/tts", {
         method: "POST",
@@ -160,14 +168,14 @@ export default function Chatbot() {
         const audio = new Audio(`data:${json.data.mimeType};base64,${json.data.audio}`);
         audioRef.current = audio;
         audio.onended = () => setSpeakingIndex(null);
-        audio.onerror = () => speakLocally(text);
+        audio.onerror = () => speakWithVoice(text, undefined, lang);
         await audio.play();
         return;
       }
     } catch {
       // fall through to local fallback below
     }
-    speakLocally(text);
+    speakWithVoice(text, undefined, lang);
   }
 
   function toggleVoice() {
