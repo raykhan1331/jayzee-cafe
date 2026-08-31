@@ -61,7 +61,7 @@ export default function Chatbot() {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
-  const [autoVoice, setAutoVoice] = useState(false);
+  const [autoVoice, setAutoVoice] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -109,9 +109,14 @@ export default function Chatbot() {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
+    // Urdu/Punjabi (Pakistan) are commonly written in Arabic/Urdu script.
+    const isUrduScript = /[؀-ۿ]/.test(text);
     const voices = window.speechSynthesis.getVoices();
-    const natural = voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
-    if (natural) utterance.voice = natural;
+    const voice = isUrduScript
+      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
+      : voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
+    if (voice) utterance.voice = voice;
+    utterance.lang = isUrduScript ? "ur-PK" : "en-US";
     utterance.onend = () => setSpeakingIndex(null);
     utterance.onerror = () => setSpeakingIndex(null);
     window.speechSynthesis.speak(utterance);
@@ -131,7 +136,7 @@ export default function Chatbot() {
     }
     setVoiceError(null);
     const recognition = new SR();
-    recognition.lang = "en-US";
+    recognition.lang = "ur-PK";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
