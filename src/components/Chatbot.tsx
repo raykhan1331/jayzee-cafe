@@ -98,7 +98,23 @@ export default function Chatbot() {
     if (autoVoice && spokenRequest) toggleSpeak(botText, botIndex);
   }
 
-  function toggleSpeak(text: string, index: number) {
+  function getVoicesReady(): Promise<SpeechSynthesisVoice[]> {
+    const existing = window.speechSynthesis.getVoices();
+    if (existing.length) return Promise.resolve(existing);
+    // Voices load asynchronously — without this wait, the very first speak
+    // call (often the auto-spoken reply to a voice question) sees an empty
+    // list and silently falls back to the browser's default English voice.
+    return new Promise((resolve) => {
+      const onReady = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onReady);
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onReady);
+      setTimeout(() => resolve(window.speechSynthesis.getVoices()), 1000);
+    });
+  }
+
+  async function toggleSpeak(text: string, index: number) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (speakingIndex === index) {
       window.speechSynthesis.cancel();
@@ -109,11 +125,11 @@ export default function Chatbot() {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
-    // Urdu/Punjabi (Pakistan) are commonly written in Arabic/Urdu script.
+    // Urdu and Punjabi (Shahmukhi, as used in Pakistan) share the Arabic script block.
     const isUrduScript = /[؀-ۿ]/.test(text);
-    const voices = window.speechSynthesis.getVoices();
+    const voices = await getVoicesReady();
     const voice = isUrduScript
-      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
+      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^pa/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
       : voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
     if (voice) utterance.voice = voice;
     utterance.lang = isUrduScript ? "ur-PK" : "en-US";
