@@ -5,9 +5,9 @@ export const business = {
   tagline: "Made for Foodies, Built for Moments.",
   description:
     "Your next favorite food spot — delicious food, beautiful vibes, and the perfect place to enjoy, relax, and create unforgettable moments.",
-  phone: "0312-1470-9833",
-  phoneDial: "+923121470983",
-  whatsapp: "923121470983",
+  phone: "0321-470-9838",
+  phoneDial: "+923214709838",
+  whatsapp: "923214709838",
   address: "D-Ground, Faisalabad — Near Chacha Samosay Wala",
   mapEmbedQuery: "D-Ground, Faisalabad, Pakistan",
   hours: "12:00 PM – 2:00 AM, Daily",
