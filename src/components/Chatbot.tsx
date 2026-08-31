@@ -60,6 +60,7 @@ export default function Chatbot() {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -89,6 +90,26 @@ export default function Chatbot() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function toggleSpeak(text: string, index: number) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (speakingIndex === index) {
+      window.speechSynthesis.cancel();
+      setSpeakingIndex(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    const voices = window.speechSynthesis.getVoices();
+    const natural = voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
+    if (natural) utterance.voice = natural;
+    utterance.onend = () => setSpeakingIndex(null);
+    utterance.onerror = () => setSpeakingIndex(null);
+    window.speechSynthesis.speak(utterance);
+    setSpeakingIndex(index);
   }
 
   function toggleVoice() {
@@ -152,7 +173,15 @@ export default function Chatbot() {
               <p className="font-bold leading-tight">{business.name}</p>
               <p className="text-xs text-amber-100">Ask me anything</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1 hover:bg-amber-800">
+            <button
+              onClick={() => {
+                window.speechSynthesis?.cancel();
+                setSpeakingIndex(null);
+                setOpen(false);
+              }}
+              aria-label="Close chat"
+              className="rounded-full p-1 hover:bg-amber-800"
+            >
               <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
@@ -161,7 +190,7 @@ export default function Chatbot() {
 
           <div className="flex-1 space-y-3 overflow-y-auto bg-stone-50 p-4">
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`flex items-end gap-1 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 text-sm ${
                     m.role === "user"
@@ -171,6 +200,26 @@ export default function Chatbot() {
                 >
                   {m.text}
                 </div>
+                {m.role === "bot" && (
+                  <button
+                    onClick={() => toggleSpeak(m.text, i)}
+                    aria-label={speakingIndex === i ? "Stop reading aloud" : "Read message aloud"}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                      speakingIndex === i ? "bg-amber-700 text-white" : "text-stone-400 hover:text-amber-700"
+                    }`}
+                  >
+                    {speakingIndex === i ? (
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5 6 9H3v6h3l5 4V5Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12" />
+                      </svg>
+                    )}
+                  </button>
+                )}
               </div>
             ))}
             {loading && (
