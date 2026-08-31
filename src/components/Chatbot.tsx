@@ -62,6 +62,7 @@ export default function Chatbot() {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const [autoVoice, setAutoVoice] = useState(true);
+  const [sttLang, setSttLang] = useState<"en-US" | "ur-PK">("en-US");
   const endRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -197,7 +198,7 @@ export default function Chatbot() {
     }
     setVoiceError(null);
     const recognition = new SR();
-    recognition.lang = "ur-PK";
+    recognition.lang = sttLang;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
@@ -351,6 +352,14 @@ export default function Chatbot() {
                 placeholder="Type a message…"
                 className="flex-1 rounded-full border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-700"
               />
+              <button
+                onClick={() => setSttLang((l) => (l === "en-US" ? "ur-PK" : "en-US"))}
+                aria-label={sttLang === "en-US" ? "Voice input language: English. Switch to Urdu" : "Voice input language: Urdu. Switch to English"}
+                title={sttLang === "en-US" ? "Speaking: English (tap for Urdu/Punjabi)" : "Speaking: Urdu/Punjabi (tap for English)"}
+                className="flex h-9 shrink-0 items-center justify-center rounded-full bg-stone-100 px-2 text-xs font-semibold text-stone-700 hover:bg-stone-200"
+              >
+                {sttLang === "en-US" ? "EN" : "اردو"}
+              </button>
               <button
                 onClick={toggleVoice}
                 aria-label={listening ? "Stop voice input" : "Start voice input"}
