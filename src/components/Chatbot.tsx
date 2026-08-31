@@ -66,6 +66,7 @@ export default function Chatbot() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const viaVoiceRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,18 +115,16 @@ export default function Chatbot() {
     });
   }
 
-  async function toggleSpeak(text: string, index: number) {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (speakingIndex === index) {
-      window.speechSynthesis.cancel();
+  // Fallback only: relies on voices installed on the customer's own device,
+  // so it can't guarantee Urdu/Punjabi audio if that device has none installed.
+  async function speakLocally(text: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setSpeakingIndex(null);
       return;
     }
-    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
-    // Urdu and Punjabi (Shahmukhi, as used in Pakistan) share the Arabic script block.
     const isUrduScript = /[؀-ۿ]/.test(text);
     const voices = await getVoicesReady();
     const voice = isUrduScript
@@ -136,7 +135,39 @@ export default function Chatbot() {
     utterance.onend = () => setSpeakingIndex(null);
     utterance.onerror = () => setSpeakingIndex(null);
     window.speechSynthesis.speak(utterance);
+  }
+
+  async function toggleSpeak(text: string, index: number) {
+    if (speakingIndex === index) {
+      audioRef.current?.pause();
+      window.speechSynthesis?.cancel();
+      setSpeakingIndex(null);
+      return;
+    }
+    audioRef.current?.pause();
+    window.speechSynthesis?.cancel();
     setSpeakingIndex(index);
+    // Server-side TTS speaks the actual detected language regardless of what
+    // voices happen to be installed on the customer's device.
+    try {
+      const res = await fetch("/api/v1/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const audio = new Audio(`data:${json.data.mimeType};base64,${json.data.audio}`);
+        audioRef.current = audio;
+        audio.onended = () => setSpeakingIndex(null);
+        audio.onerror = () => speakLocally(text);
+        await audio.play();
+        return;
+      }
+    } catch {
+      // fall through to local fallback below
+    }
+    speakLocally(text);
   }
 
   function toggleVoice() {
@@ -208,6 +239,7 @@ export default function Chatbot() {
                 onClick={() => {
                   setAutoVoice((v) => !v);
                   if (autoVoice) {
+                    audioRef.current?.pause();
                     window.speechSynthesis?.cancel();
                     setSpeakingIndex(null);
                   }
@@ -230,6 +262,7 @@ export default function Chatbot() {
               </button>
               <button
                 onClick={() => {
+                  audioRef.current?.pause();
                   window.speechSynthesis?.cancel();
                   setSpeakingIndex(null);
                   setOpen(false);
