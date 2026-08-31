@@ -61,9 +61,11 @@ export default function Chatbot() {
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const [autoVoice, setAutoVoice] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const viaVoiceRef = useRef(false);
 
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,9 +75,13 @@ export default function Chatbot() {
     const text = input.trim();
     if (!text || loading) return;
     const history = messages.slice(-6);
+    const botIndex = messages.length + 1;
+    const spokenRequest = viaVoiceRef.current;
+    viaVoiceRef.current = false;
     setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setLoading(true);
+    let botText: string;
     try {
       const res = await fetch("/api/v1/chat", {
         method: "POST",
@@ -83,13 +89,13 @@ export default function Chatbot() {
         body: JSON.stringify({ message: text, history }),
       });
       const json = await res.json();
-      const botText = json.success ? json.data.reply : reply(text);
-      setMessages((m) => [...m, { role: "bot", text: botText }]);
+      botText = json.success ? json.data.reply : reply(text);
     } catch {
-      setMessages((m) => [...m, { role: "bot", text: reply(text) }]);
-    } finally {
-      setLoading(false);
+      botText = reply(text);
     }
+    setMessages((m) => [...m, { role: "bot", text: botText }]);
+    setLoading(false);
+    if (autoVoice && spokenRequest) toggleSpeak(botText, botIndex);
   }
 
   function toggleSpeak(text: string, index: number) {
@@ -130,7 +136,10 @@ export default function Chatbot() {
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (e: any) => setInput(e.results[0][0].transcript);
+    recognition.onresult = (e: any) => {
+      setInput(e.results[0][0].transcript);
+      viaVoiceRef.current = true;
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (e: any) => {
       const messages: Record<string, string> = {
@@ -173,19 +182,45 @@ export default function Chatbot() {
               <p className="font-bold leading-tight">{business.name}</p>
               <p className="text-xs text-amber-100">Ask me anything</p>
             </div>
-            <button
-              onClick={() => {
-                window.speechSynthesis?.cancel();
-                setSpeakingIndex(null);
-                setOpen(false);
-              }}
-              aria-label="Close chat"
-              className="rounded-full p-1 hover:bg-amber-800"
-            >
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  setAutoVoice((v) => !v);
+                  if (autoVoice) {
+                    window.speechSynthesis?.cancel();
+                    setSpeakingIndex(null);
+                  }
+                }}
+                aria-label={autoVoice ? "Turn off auto voice replies" : "Turn on auto voice replies"}
+                title={autoVoice ? "Auto voice replies: ON" : "Auto voice replies: OFF"}
+                className={`rounded-full p-1.5 ${autoVoice ? "bg-white text-amber-700" : "hover:bg-amber-800"}`}
+              >
+                {autoVoice ? (
+                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5 6 9H3v6h3l5 4V5Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 8.5a5 5 0 0 1 0 7" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5 6 9H3v6h3l5 4V5Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 9l4 6M20 9l-4 6" />
+                  </svg>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  window.speechSynthesis?.cancel();
+                  setSpeakingIndex(null);
+                  setOpen(false);
+                }}
+                aria-label="Close chat"
+                className="rounded-full p-1 hover:bg-amber-800"
+              >
+                <svg viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto bg-stone-50 p-4">
@@ -240,7 +275,10 @@ export default function Chatbot() {
             <div className="flex items-center gap-2">
               <input
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  viaVoiceRef.current = false;
+                }}
                 onKeyDown={(e) => e.key === "Enter" && send()}
                 placeholder="Type a message…"
                 className="flex-1 rounded-full border border-stone-300 px-4 py-2 text-sm outline-none focus:border-amber-700"
