@@ -145,18 +145,24 @@ export default function Chatbot() {
     const lang = isUrduScript ? "ur-PK" : "en-US";
     const voices = await getVoicesReady();
     const localVoice = isUrduScript
-      ? voices.find((v) => /^ur/i.test(v.lang)) ?? voices.find((v) => /^pa/i.test(v.lang)) ?? voices.find((v) => /^(hi|ar)/i.test(v.lang))
+      ? voices.find((v) => /^ur/i.test(v.lang)) ??
+        voices.find((v) => /^pa/i.test(v.lang)) ??
+        voices.find((v) => /urdu|punjabi/i.test(v.name)) ??
+        voices.find((v) => /^(hi|ar)/i.test(v.lang))
       : voices.find((v) => /en-US|en-GB/.test(v.lang) && /Google|Natural|Female/i.test(v.name)) ?? voices.find((v) => v.lang.startsWith("en"));
 
-    // Fast path: a matching voice is already installed on this device — speak
-    // instantly with zero network round-trip, no server quota involved.
+    // Primary path: a matching voice is already installed on this device —
+    // speak instantly, no network call, no server quota touched at all.
+    // This is unlimited and free for every device that has the voice.
     if (localVoice) {
       speakWithVoice(text, localVoice, lang);
       return;
     }
 
-    // No matching local voice (e.g. no Urdu pack on this device) — try
-    // server-side TTS as a best-effort enhancement (limited daily quota).
+    // No matching local voice on this device (e.g. no Urdu/Punjabi pack) —
+    // fall back to server-side Gemini TTS, which has its own limited daily
+    // quota. If that's also unavailable, stop cleanly rather than misspeaking
+    // the reply in the wrong-language voice (the text answer stays visible).
     try {
       const res = await fetch("/api/v1/tts", {
         method: "POST",
@@ -168,14 +174,14 @@ export default function Chatbot() {
         const audio = new Audio(`data:${json.data.mimeType};base64,${json.data.audio}`);
         audioRef.current = audio;
         audio.onended = () => setSpeakingIndex(null);
-        audio.onerror = () => speakWithVoice(text, undefined, lang);
+        audio.onerror = () => setSpeakingIndex(null);
         await audio.play();
         return;
       }
     } catch {
-      // fall through to local fallback below
+      // fall through below
     }
-    speakWithVoice(text, undefined, lang);
+    setSpeakingIndex(null);
   }
 
   function toggleVoice() {
